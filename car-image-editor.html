@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Редактор изображения автомобиля</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            background-color: #f9f9f9;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .upload-area:hover {
+            border-color: #999;
+            background-color: #f5f5f5;
+        }
+        .upload-area.active {
+            border-color: #4CAF50;
+            background-color: #e8f5e9;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .canvas-container {
+            text-align: center;
+            margin: 20px 0;
+            display: none;
+            position: relative;
+            display: inline-block;
+        }
+        .canvas-wrapper {
+            text-align: center;
+            position: relative;
+            display: inline-block;
+        }
+        canvas {
+            max-width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            cursor: pointer;
+        }
+        .controls {
+            display: none;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .tool-buttons {
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 0 5px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        button.active {
+            background-color: #2196F3;
+        }
+        button.secondary {
+            background-color: #757575;
+        }
+        button.secondary:hover {
+            background-color: #616161;
+        }
+        .info {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            color: #1976d2;
+        }
+        .instructions {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            color: #856404;
+            display: none;
+        }
+        .status {
+            background-color: #d4edda;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            color: #155724;
+            display: none;
+            text-align: center;
+        }
+        .slider-container {
+            margin: 15px 0;
+            text-align: center;
+        }
+        .slider-container label {
+            display: inline-block;
+            width: 150px;
+            text-align: right;
+            margin-right: 10px;
+        }
+        input[type="range"] {
+            width: 200px;
+            vertical-align: middle;
+        }
+        .slider-value {
+            display: inline-block;
+            width: 50px;
+            text-align: left;
+            margin-left: 10px;
+        }
+        .step-indicator {
+            text-align: center;
+            margin: 15px 0;
+            font-size: 18px;
+            color: #555;
+        }
+        .step {
+            display: inline-block;
+            margin: 0 10px;
+            padding: 5px 15px;
+            border-radius: 20px;
+            background-color: #e0e0e0;
+            color: #777;
+        }
+        .step.active {
+            background-color: #2196F3;
+            color: white;
+        }
+        .step.completed {
+            background-color: #4CAF50;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Редактор изображения автомобиля</h1>
+        
+        <div class="info">
+            ℹ️ Загрузите изображение и выделите области номерного знака и автомобиля точками
+        </div>
+        
+        <div class="upload-area" id="uploadArea">
+            <p>📷 Нажмите здесь или перетащите изображение</p>
+            <p style="color: #666; font-size: 14px;">Поддерживаются форматы: JPG, PNG</p>
+        </div>
+        
+        <input type="file" id="fileInput" accept="image/*">
+        
+        <div class="step-indicator" id="stepIndicator" style="display: none;">
+            <span class="step" id="step1">1. Выделить номер</span>
+            <span class="step" id="step2">2. Выделить машину</span>
+            <span class="step" id="step3">3. Применить</span>
+        </div>
+        
+        <div class="instructions" id="instructions"></div>
+        
+        <div class="status" id="status"></div>
+        
+        <div class="controls" id="controls">
+            <div class="tool-buttons">
+                <button id="plateBtn" class="active">🔢 Выделить номер</button>
+                <button id="carBtn">🚗 Выделить машину</button>
+                <button id="resetBtn" class="secondary">↩️ Сбросить всё</button>
+                <button id="clearCurrentBtn" class="secondary">🗑️ Очистить текущее</button>
+            </div>
+            
+            <div class="slider-container">
+                <label for="blurStrength">Сила размытия фона:</label>
+                <input type="range" id="blurStrength" min="5" max="30" value="15">
+                <span class="slider-value" id="blurStrengthValue">15</span>
+            </div>
+            
+            <div class="slider-container">
+                <label for="featherSize">Плавность границ:</label>
+                <input type="range" id="featherSize" min="10" max="100" value="50">
+                <span class="slider-value" id="featherSizeValue">50</span>
+            </div>
+        </div>
+        
+        <div class="canvas-container" id="canvasContainer">
+            <div class="canvas-wrapper">
+                <canvas id="canvas"></canvas>
+                <canvas id="overlayCanvas" style="position: absolute; top: 0; left: 0; pointer-events: none;"></canvas>
+            </div>
+        </div>
+        
+        <div class="controls" id="finalControls" style="display: none;">
+            <button id="applyBtn">✅ Применить изменения</button>
+            <button id="downloadBtn" disabled>💾 Скачать PNG</button>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const overlayCanvas = document.getElementById('overlayCanvas');
+        const overlayCtx = overlayCanvas.getContext('2d');
+        const canvasContainer = document.getElementById('canvasContainer');
+        const controls = document.getElementById('controls');
+        const finalControls = document.getElementById('finalControls');
+        const instructions = document.getElementById('instructions');
+        const status = document.getElementById('status');
+        const stepIndicator = document.getElementById('stepIndicator');
+        
+        const plateBtn = document.getElementById('plateBtn');
+        const carBtn = document.getElementById('carBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const clearCurrentBtn = document.getElementById('clearCurrentBtn');
+        const applyBtn = document.getElementById('applyBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        
+        const blurStrength = document.getElementById('blurStrength');
+        const blurStrengthValue = document.getElementById('blurStrengthValue');
+        const featherSize = document.getElementById('featherSize');
+        const featherSizeValue = document.getElementById('featherSizeValue');
+        
+        let originalImage = null;
+        let currentTool = 'plate';
+        let carMask = null;
+        let plateMask = null;
+        let carPoints = [];
+        let platePoints = [];
+        let isSelecting = false;
+        let plateCompleted = false;
+        let carCompleted = false;
+        
+        // Upload handlers
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('active');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('active');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('active');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type.startsWith('image/')) {
+                handleFile(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+        
+        function handleFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    originalImage = img;
+                    displayImage(img);
+                    canvasContainer.style.display = 'block';
+                    controls.style.display = 'block';
+                    finalControls.style.display = 'block';
+                    instructions.style.display = 'block';
+                    stepIndicator.style.display = 'block';
+                    setTool('plate');
+                    resetAll();
+                    updateStepIndicator();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function displayImage(img) {
+            const maxWidth = 800;
+            const maxHeight = 600;
+            
+            let width = img.width;
+            let height = img.height;
+            
+            if (width > maxWidth || height > maxHeight) {
+                const ratio = Math.min(maxWidth / width, maxHeight / height);
+                width *= ratio;
+                height *= ratio;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            overlayCanvas.width = width;
+            overlayCanvas.height = height;
+            
+            ctx.drawImage(img, 0, 0, width, height);
+        }
+        
+        function resetAll() {
+            carMask = new ImageData(canvas.width, canvas.height);
+            plateMask = new ImageData(canvas.width, canvas.height);
+            carPoints = [];
+            platePoints = [];
+            plateCompleted = false;
+            carCompleted = false;
+            isSelecting = false;
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            if (originalImage) {
+                ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
+            }
+            downloadBtn.disabled = true;
+            status.style.display = 'none';
+            updateStepIndicator();
+        }
+        
+        function clearCurrent() {
+            if (currentTool === 'plate') {
+                platePoints = [];
+                plateCompleted = false;
+                fillPlateMask();
+            } else if (currentTool === 'car') {
+                carPoints = [];
+                carCompleted = false;
+                fillCarMask();
+            }
+            isSelecting = false;
+            drawAll();
+            updateStepIndicator();
+        }
+        
+        // Tool selection
+        plateBtn.addEventListener('click', () => setTool('plate'));
+        carBtn.addEventListener('click', () => setTool('car'));
+        resetBtn.addEventListener('click', resetAll);
+        clearCurrentBtn.addEventListener('click', clearCurrent);
+        
+        function setTool(tool) {
+            currentTool = tool;
+            plateBtn.classList.toggle('active', tool === 'plate');
+            carBtn.classList.toggle('active', tool === 'car');
+            
+            if (tool === 'plate') {
+                instructions.textContent = '🔢 Кликайте по углам номерного знака. Замкните контур для завершения.';
+                isSelecting = !plateCompleted;
+            } else if (tool === 'car') {
+                instructions.textContent = '🚗 Кликайте по контуру машины. Замкните контур для завершения.';
+                isSelecting = !carCompleted;
+            }
+            
+            drawAll();
+        }
+        
+        function updateStepIndicator() {
+            document.getElementById('step1').classList.toggle('completed', plateCompleted);
+            document.getElementById('step1').classList.toggle('active', currentTool === 'plate' && !plateCompleted);
+            
+            document.getElementById('step2').classList.toggle('completed', carCompleted);
+            document.getElementById('step2').classList.toggle('active', currentTool === 'car' && !carCompleted);
+            
+            document.getElementById('step3').classList.toggle('active', plateCompleted && carCompleted);
+        }
+        
+        // Mouse events
+        canvas.addEventListener('mousedown', (e) => {
+            if (currentTool === 'plate' && !plateCompleted) {
+                addPoint(e, platePoints, 'plate');
+            } else if (currentTool === 'car' && !carCompleted) {
+                addPoint(e, carPoints, 'car');
+            }
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (isSelecting) {
+                drawAll(e);
+            }
+        });
+        
+        function addPoint(e, points, type) {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+            
+            // Check if closing polygon
+            if (points.length > 2) {
+                const dist = Math.sqrt(Math.pow(x - points[0].x, 2) + Math.pow(y - points[0].y, 2));
+                if (dist < 20) {
+                    isSelecting = false;
+                    if (type === 'plate') {
+                        plateCompleted = true;
+                        fillPlateMask();
+                        status.textContent = '✅ Номерной знак выделен!';
+                        if (!carCompleted) {
+                            setTimeout(() => setTool('car'), 500);
+                        }
+                    } else if (type === 'car') {
+                        carCompleted = true;
+                        fillCarMask();
+                        status.textContent = '✅ Машина выделена!';
+                    }
+                    
+                    if (plateCompleted && carCompleted) {
+                        status.textContent = '✅ Все области выделены! Можете применить изменения.';
+                    }
+                    
+                    status.style.display = 'block';
+                    updateStepIndicator();
+                    drawAll();
+                    return;
+                }
+            }
+            
+            points.push({ x, y });
+            drawAll();
+        }
+        
+        function drawAll(mouseEvent) {
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            
+            // Draw plate selection/mask
+            if (platePoints.length > 0) {
+                if (plateCompleted) {
+                    overlayCtx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+                    drawPolygon(overlayCtx, platePoints, true);
+                } else {
+                    overlayCtx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+                    overlayCtx.lineWidth = 2;
+                    drawPolygon(overlayCtx, platePoints, false, mouseEvent && currentTool === 'plate' ? mouseEvent : null);
+                }
+                
+                // Draw points
+                overlayCtx.fillStyle = 'rgba(255, 0, 0, 1)';
+                platePoints.forEach(point => {
+                    overlayCtx.beginPath();
+                    overlayCtx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+                    overlayCtx.fill();
+                });
+            }
+            
+            // Draw car selection/mask
+            if (carPoints.length > 0) {
+                if (carCompleted) {
+                    overlayCtx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+                    drawPolygon(overlayCtx, carPoints, true);
+                } else {
+                    overlayCtx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+                    overlayCtx.lineWidth = 2;
+                    drawPolygon(overlayCtx, carPoints, false, mouseEvent && currentTool === 'car' ? mouseEvent : null);
+                }
+                
+                // Draw points
+                overlayCtx.fillStyle = 'rgba(0, 255, 0, 1)';
+                carPoints.forEach(point => {
+                    overlayCtx.beginPath();
+                    overlayCtx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+                    overlayCtx.fill();
+                });
+            }
+        }
+        
+        function drawPolygon(ctx, points, fill, mouseEvent) {
+            if (points.length === 0) return;
+            
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            
+            if (mouseEvent) {
+                const rect = canvas.getBoundingClientRect();
+                const x = (mouseEvent.clientX - rect.left) * (canvas.width / rect.width);
+                const y = (mouseEvent.clientY - rect.top) * (canvas.height / rect.height);
+                ctx.lineTo(x, y);
+            }
+            
+            if (fill) {
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                ctx.stroke();
+            }
+        }
+        
+        function fillPlateMask() {
+            plateMask = new ImageData(canvas.width, canvas.height);
+            if (platePoints.length < 3) return;
+            
+            for (let y = 0; y < canvas.height; y++) {
+                for (let x = 0; x < canvas.width; x++) {
+                    if (isPointInPolygon(x, y, platePoints)) {
+                        const idx = (y * canvas.width + x) * 4;
+                        plateMask.data[idx + 3] = 255;
+                    }
+                }
+            }
+        }
+        
+        function fillCarMask() {
+            carMask = new ImageData(canvas.width, canvas.height);
+            if (carPoints.length < 3) return;
+            
+            for (let y = 0; y < canvas.height; y++) {
+                for (let x = 0; x < canvas.width; x++) {
+                    if (isPointInPolygon(x, y, carPoints)) {
+                        const idx = (y * canvas.width + x) * 4;
+                        carMask.data[idx + 3] = 255;
+                    }
+                }
+            }
+        }
+        
+        function isPointInPolygon(x, y, polygon) {
+            let inside = false;
+            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+                const xi = polygon[i].x, yi = polygon[i].y;
+                const xj = polygon[j].x, yj = polygon[j].y;
+                
+                const intersect = ((yi > y) !== (yj > y))
+                    && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+        
+        // Calculate distance from point to polygon edge
+        function distanceToPolygonEdge(x, y, polygon) {
+            let minDist = Infinity;
+            
+            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+                const x1 = polygon[j].x, y1 = polygon[j].y;
+                const x2 = polygon[i].x, y2 = polygon[i].y;
+                
+                const A = x - x1;
+                const B = y - y1;
+                const C = x2 - x1;
+                const D = y2 - y1;
+                
+                const dot = A * C + B * D;
+                const lenSq = C * C + D * D;
+                let param = -1;
+                
+                if (lenSq !== 0) param = dot / lenSq;
+                
+                let xx, yy;
+                
+                if (param < 0) {
+                    xx = x1;
+                    yy = y1;
+                } else if (param > 1) {
+                    xx = x2;
+                    yy = y2;
+                } else {
+                    xx = x1 + param * C;
+                    yy = y1 + param * D;
+                }
+                
+                const dx = x - xx;
+                const dy = y - yy;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < minDist) minDist = dist;
+            }
+            
+            return minDist;
+        }
+        
+        // Sliders
+        blurStrength.addEventListener('input', (e) => {
+            blurStrengthValue.textContent = e.target.value;
+        });
+        
+        featherSize.addEventListener('input', (e) => {
+            featherSizeValue.textContent = e.target.value;
+        });
+        
+        // Apply processing
+        applyBtn.addEventListener('click', () => {
+            if (!originalImage) return;
+            
+            if (!plateCompleted || !carCompleted) {
+                status.textContent = '⚠️ Сначала выделите обе области: номерной знак и машину.';
+                status.style.display = 'block';
+                status.style.backgroundColor = '#f8d7da';
+                status.style.color = '#721c24';
+                return;
+            }
+            
+            applyBtn.disabled = true;
+            status.textContent = '⏳ Обработка изображения...';
+            status.style.backgroundColor = '#cce5ff';
+            status.style.color = '#004085';
+            
+            setTimeout(() => {
+                processImage();
+                status.textContent = '✅ Изображение обработано! Можете скачать результат.';
+                status.style.backgroundColor = '#d4edda';
+                status.style.color = '#155724';
+                applyBtn.disabled = false;
+                downloadBtn.disabled = false;
+            }, 500);
+        });
+        
+        function processImage() {
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Create temporary canvas
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // Draw original
+            tempCtx.drawImage(originalImage, 0, 0, width, height);
+            const imageData = tempCtx.getImageData(0, 0, width, height);
+            
+            // Create feather map for smooth transition
+            const featherDistance = parseInt(featherSize.value);
+            const featherMap = new Float32Array(width * height);
+            
+            // Calculate feather map
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = y * width + x;
+                    const insideCar = isPointInPolygon(x, y, carPoints);
+                    
+                    if (insideCar) {
+                        featherMap[idx] = 1.0;
+                    } else {
+                        const dist = distanceToPolygonEdge(x, y, carPoints);
+                        featherMap[idx] = Math.max(0, 1 - (dist / featherDistance));
+                    }
+                }
+            }
+            
+            // Apply blur with feathering
+            const blurRadius = parseInt(blurStrength.value);
+            const blurredData = new ImageData(new Uint8ClampedArray(imageData.data), width, height);
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    const mapIdx = y * width + x;
+                    const featherValue = featherMap[mapIdx];
+                    
+                    if (featherValue < 1.0) {
+                        // Calculate blurred value
+                        let r = 0, g = 0, b = 0, count = 0;
+                        
+                        for (let dy = -blurRadius; dy <= blurRadius; dy++) {
+                            for (let dx = -blurRadius; dx <= blurRadius; dx++) {
+                                const ny = y + dy;
+                                const nx = x + dx;
+                                
+                                if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+                                    const nidx = (ny * width + nx) * 4;
+                                    r += imageData.data[nidx];
+                                    g += imageData.data[nidx + 1];
+                                    b += imageData.data[nidx + 2];
+                                    count++;
+                                }
+                            }
+                        }
+                        
+                        const blurredR = r / count;
+                        const blurredG = g / count;
+                        const blurredB = b / count;
+                        
+                        // Mix original and blurred based on feather value
+                        blurredData.data[idx] = imageData.data[idx] * featherValue + blurredR * (1 - featherValue);
+                        blurredData.data[idx + 1] = imageData.data[idx + 1] * featherValue + blurredG * (1 - featherValue);
+                        blurredData.data[idx + 2] = imageData.data[idx + 2] * featherValue + blurredB * (1 - featherValue);
+                    }
+                }
+            }
+            
+            // Apply plate mask
+            for (let i = 0; i < plateMask.data.length; i += 4) {
+                if (plateMask.data[i + 3] > 0) {
+                    blurredData.data[i] = 30;
+                    blurredData.data[i + 1] = 30;
+                    blurredData.data[i + 2] = 30;
+                }
+            }
+            
+            // Clear overlay
+            overlayCtx.clearRect(0, 0, width, height);
+            
+            // Draw final result
+            ctx.putImageData(blurredData, 0, 0);
+        }
+        
+        downloadBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'processed_car_image.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+    </script>
+</body>
+</html>
